@@ -5,13 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>制限つき一様乱数サイコロ</title>
 <style>
+  :root {
+    --main-color: #7457d9;
+    --background-color: #f6f3ff;
+    --button-color: #7457d9;
+    --dice-color: #ffffff;
+    --ink-color: #292333;
+    --muted-color: #716b7d;
+    --main-soft: color-mix(in srgb, var(--main-color) 16%, white);
+    --main-pale: color-mix(in srgb, var(--main-color) 8%, white);
+  }
   * { box-sizing: border-box; }
   body {
     margin: 0;
     min-height: 100vh;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: #f6f3ff;
-    color: #292333;
+    background: var(--background-color);
+    color: var(--ink-color);
     display: flex;
     justify-content: center;
     padding: 32px 16px;
@@ -24,24 +34,42 @@
     box-shadow: 0 12px 40px rgba(50, 35, 80, .12);
   }
   h1 { margin: 0 0 8px; font-size: 28px; }
-  .desc { margin: 0 0 24px; color: #716b7d; }
+  .desc { margin: 0 0 24px; color: var(--muted-color); }
   .dice {
     width: 180px;
     height: 180px;
     margin: 12px auto 24px;
-    border: 5px solid #292333;
+    border: 5px solid var(--ink-color);
     border-radius: 28px;
     display: grid;
-    place-items: center;
-    font-size: 76px;
-    font-weight: 800;
-    background: #fff;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 8px;
+    padding: 24px;
+    background: var(--dice-color);
     transition: transform .12s ease;
   }
+  .pip {
+    width: 24px;
+    height: 24px;
+    place-self: center;
+    border-radius: 50%;
+    background: var(--ink-color);
+    opacity: 0;
+    transform: scale(.6);
+    transition: opacity .12s ease, transform .12s ease;
+  }
+  .pip.is-visible { opacity: 1; transform: scale(1); }
   .rolling { animation: shake .18s infinite alternate; }
   @keyframes shake {
     from { transform: rotate(-4deg) scale(.98); }
     to { transform: rotate(4deg) scale(1.02); }
+  }
+  .result-pop { animation: result-pop .42s cubic-bezier(.2, .9, .35, 1); }
+  @keyframes result-pop {
+    0% { transform: scale(.88); }
+    55% { transform: scale(1.09); }
+    100% { transform: scale(1); }
   }
   .faces {
     display: grid;
@@ -61,11 +89,17 @@
     user-select: none;
   }
   .face.selected {
-    border-color: #7457d9;
-    background: #eee9ff;
-    color: #5a3bc0;
+    border-color: var(--main-color);
+    background: var(--main-soft);
+    color: var(--main-color);
   }
-  .face input { display: none; }
+  .face input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+  }
+  .face:focus-within { outline: 3px solid var(--main-color); outline-offset: 2px; }
   button {
     border: 0;
     border-radius: 14px;
@@ -76,15 +110,15 @@
   }
   .roll {
     width: 100%;
-    background: #7457d9;
+    background: var(--button-color);
     color: white;
     font-size: 20px;
     padding: 17px;
   }
   .roll:disabled { opacity: .55; cursor: not-allowed; }
   .secondary {
-    background: #eeeaf5;
-    color: #40384e;
+    background: var(--main-pale);
+    color: var(--ink-color);
   }
   .row {
     display: flex;
@@ -94,13 +128,13 @@
   .row button { flex: 1; }
   .status {
     text-align: center;
-    color: #716b7d;
+    color: var(--muted-color);
     margin: 14px 0 0;
     min-height: 24px;
   }
   .history {
     margin-top: 26px;
-    border-top: 1px solid #eeeaf2;
+    border-top: 1px solid var(--main-pale);
     padding-top: 20px;
   }
   .history h2 { font-size: 18px; margin: 0 0 10px; }
@@ -110,7 +144,7 @@
     gap: 7px;
   }
   .history-item {
-    background: #f3f0f8;
+    background: var(--main-pale);
     border-radius: 10px;
     padding: 7px 11px;
     font-weight: 700;
@@ -118,12 +152,55 @@
   .prob {
     text-align: center;
     font-size: 14px;
-    color: #716b7d;
+    color: var(--muted-color);
     margin-top: 4px;
+  }
+  .customizer {
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid var(--main-pale);
+  }
+  .customizer h2 { font-size: 18px; margin: 0 0 6px; }
+  .customizer p { margin: 0 0 14px; color: var(--muted-color); font-size: 14px; }
+  .color-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .color-control {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 54px;
+    padding: 10px 12px;
+    border: 2px solid var(--main-pale);
+    border-radius: 14px;
+    background: #fff;
+    font-weight: 700;
+  }
+  .color-control input {
+    width: 36px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  button:focus-visible, .color-control input:focus-visible {
+    outline: 3px solid var(--main-color);
+    outline-offset: 3px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .rolling, .result-pop { animation: none; }
+    .dice, .pip { transition: none; }
   }
   @media (max-width: 520px) {
     .faces { grid-template-columns: repeat(3, 1fr); }
     .app { padding: 20px; }
+    .color-controls { grid-template-columns: 1fr; }
+    .dice { width: 160px; height: 160px; padding: 21px; }
+    .pip { width: 21px; height: 21px; }
   }
 </style>
 </head>
@@ -132,7 +209,11 @@
   <h1>🎲 制限つき一様乱数サイコロ</h1>
   <p class="desc">出る面だけ選択。選択された面はすべて同じ確率で出ます。</p>
 
-  <div id="dice" class="dice">?</div>
+  <div id="dice" class="dice" role="img" aria-label="まだ振られていないサイコロ">
+    <span class="pip"></span><span class="pip"></span><span class="pip"></span>
+    <span class="pip"></span><span class="pip"></span><span class="pip"></span>
+    <span class="pip"></span><span class="pip"></span><span class="pip"></span>
+  </div>
 
   <div class="prob" id="prob">6面すべて選択中 → 各 16.67%</div>
 
@@ -146,12 +227,23 @@
     <button class="secondary" id="none">すべて解除</button>
   </div>
 
-  <div class="status" id="status"></div>
+  <div class="status" id="status" role="status" aria-live="polite"></div>
 
   <div class="history">
     <h2>履歴</h2>
     <div id="history"></div>
   </div>
+
+  <section class="customizer" aria-labelledby="customizer-title">
+    <h2 id="customizer-title">デザインをカスタマイズ</h2>
+    <p>好きな色を選ぶと、すぐに画面へ反映されます。</p>
+    <div class="color-controls">
+      <label class="color-control">メインカラー <input id="main-color" type="color" value="#7457d9"></label>
+      <label class="color-control">背景色 <input id="background-color" type="color" value="#f6f3ff"></label>
+      <label class="color-control">ボタンの色 <input id="button-color" type="color" value="#7457d9"></label>
+      <label class="color-control">サイコロの色 <input id="dice-color" type="color" value="#ffffff"></label>
+    </div>
+  </section>
 </div>
 
 <script>
@@ -161,16 +253,33 @@ const rollBtn = document.getElementById('roll');
 const probEl = document.getElementById('prob');
 const statusEl = document.getElementById('status');
 const historyEl = document.getElementById('history');
+const pips = [...diceEl.querySelectorAll('.pip')];
 
 let selected = [1,2,3,4,5,6];
 let history = [];
+
+const pipPatterns = {
+  1: [4],
+  2: [0, 8],
+  3: [0, 4, 8],
+  4: [0, 2, 6, 8],
+  5: [0, 2, 4, 6, 8],
+  6: [0, 2, 3, 5, 6, 8]
+};
+
+function renderDice(value) {
+  pips.forEach((pip, index) => {
+    pip.classList.toggle('is-visible', pipPatterns[value].includes(index));
+  });
+  diceEl.setAttribute('aria-label', `${value}の目が出たサイコロ`);
+}
 
 function renderFaces() {
   facesEl.innerHTML = '';
   for (let n = 1; n <= 6; n++) {
     const label = document.createElement('label');
     label.className = 'face' + (selected.includes(n) ? ' selected' : '');
-    label.innerHTML = `<input type="checkbox" ${selected.includes(n) ? 'checked' : ''}>${n}`;
+    label.innerHTML = `<input type="checkbox" aria-label="${n}の目を出現させる" ${selected.includes(n) ? 'checked' : ''}>${n}`;
     label.addEventListener('click', (e) => {
       e.preventDefault();
       if (selected.includes(n)) {
@@ -225,8 +334,11 @@ async function roll() {
   await new Promise(r => setTimeout(r, 550));
 
   const result = selected[secureRandomIndex(selected.length)];
-  diceEl.textContent = result;
   diceEl.classList.remove('rolling');
+  renderDice(result);
+  diceEl.classList.remove('result-pop');
+  void diceEl.offsetWidth;
+  diceEl.classList.add('result-pop');
 
   history.unshift(result);
   history = history.slice(0, 20);
@@ -249,6 +361,19 @@ document.getElementById('none').addEventListener('click', () => {
 });
 
 rollBtn.addEventListener('click', roll);
+
+const colorControls = {
+  'main-color': '--main-color',
+  'background-color': '--background-color',
+  'button-color': '--button-color',
+  'dice-color': '--dice-color'
+};
+
+Object.entries(colorControls).forEach(([id, variable]) => {
+  document.getElementById(id).addEventListener('input', (event) => {
+    document.documentElement.style.setProperty(variable, event.target.value);
+  });
+});
 
 renderFaces();
 updateProb();
