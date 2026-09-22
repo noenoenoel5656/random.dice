@@ -3,13 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>制限つき一様乱数サイコロ</title>
+<title>デジタルサイコロ</title>
 <style>
   :root {
     --main-color: #7457d9;
     --background-color: #f6f3ff;
     --button-color: #7457d9;
     --dice-color: #ffffff;
+    --pip-color: #292333;
+    --one-pip-color: #e34b52;
     --ink-color: #292333;
     --muted-color: #716b7d;
     --main-soft: color-mix(in srgb, var(--main-color) 16%, white);
@@ -33,7 +35,12 @@
     padding: 28px;
     box-shadow: 0 12px 40px rgba(50, 35, 80, .12);
   }
-  h1 { margin: 0 0 8px; font-size: 28px; }
+  h1 {
+    margin: 0 0 8px;
+    font-family: "Hiragino Maru Gothic ProN", "Yu Gothic Rounded", "Arial Rounded MT Bold", "Nunito", sans-serif;
+    font-size: 30px;
+    letter-spacing: .04em;
+  }
   .desc { margin: 0 0 24px; color: var(--muted-color); }
   .dice {
     width: 180px;
@@ -47,6 +54,7 @@
     gap: 8px;
     padding: 24px;
     background: var(--dice-color);
+    position: relative;
     transition: transform .12s ease;
   }
   .pip {
@@ -54,22 +62,52 @@
     height: 24px;
     place-self: center;
     border-radius: 50%;
-    background: var(--ink-color);
+    background: var(--pip-color);
     opacity: 0;
     transform: scale(.6);
     transition: opacity .12s ease, transform .12s ease;
+    z-index: 1;
   }
   .pip.is-visible { opacity: 1; transform: scale(1); }
+  .dice[data-value="1"] .pip.is-visible { background: var(--one-pip-color); }
   .rolling { animation: shake .18s infinite alternate; }
   @keyframes shake {
     from { transform: rotate(-4deg) scale(.98); }
     to { transform: rotate(4deg) scale(1.02); }
   }
-  .result-pop { animation: result-pop .42s cubic-bezier(.2, .9, .35, 1); }
-  @keyframes result-pop {
-    0% { transform: scale(.88); }
-    55% { transform: scale(1.09); }
-    100% { transform: scale(1); }
+  .ping-effect {
+    position: absolute;
+    inset: -60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .ray {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 13px;
+    height: 54px;
+    border-radius: 3px;
+    background: #ffd34e;
+    clip-path: polygon(18% 0, 100% 8%, 78% 100%, 0 88%);
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--ray-angle)) translateY(-146px) scaleY(.55);
+  }
+  .ray:nth-child(1) { --ray-angle: -18deg; height: 58px; }
+  .ray:nth-child(2) { --ray-angle: 62deg; height: 51px; }
+  .ray:nth-child(3) { --ray-angle: 145deg; height: 60px; }
+  .ray:nth-child(4) { --ray-angle: 254deg; height: 48px; }
+  .ping-effect.is-active .ray { animation: ping-ray .42s ease-out both; }
+  @keyframes ping-ray {
+    0% {
+      opacity: 0;
+      transform: translate(-50%, -50%) rotate(var(--ray-angle)) translateY(-132px) scaleY(.4);
+    }
+    22% { opacity: .9; }
+    100% {
+      opacity: 0;
+      transform: translate(-50%, -50%) rotate(var(--ray-angle)) translateY(-160px) scaleY(1);
+    }
   }
   .faces {
     display: grid;
@@ -192,7 +230,7 @@
     outline-offset: 3px;
   }
   @media (prefers-reduced-motion: reduce) {
-    .rolling, .result-pop { animation: none; }
+    .rolling, .ping-effect.is-active .ray { animation: none; }
     .dice, .pip { transition: none; }
   }
   @media (max-width: 520px) {
@@ -206,13 +244,16 @@
 </head>
 <body>
 <div class="app">
-  <h1>🎲 制限つき一様乱数サイコロ</h1>
+  <h1>🎲 デジタルサイコロ</h1>
   <p class="desc">出る面だけ選択。選択された面はすべて同じ確率で出ます。</p>
 
   <div id="dice" class="dice" role="img" aria-label="まだ振られていないサイコロ">
     <span class="pip"></span><span class="pip"></span><span class="pip"></span>
     <span class="pip"></span><span class="pip"></span><span class="pip"></span>
     <span class="pip"></span><span class="pip"></span><span class="pip"></span>
+    <div class="ping-effect" id="ping-effect" aria-hidden="true">
+      <span class="ray"></span><span class="ray"></span><span class="ray"></span><span class="ray"></span>
+    </div>
   </div>
 
   <div class="prob" id="prob">6面すべて選択中 → 各 16.67%</div>
@@ -239,7 +280,7 @@
     <p>好きな色を選ぶと、すぐに画面へ反映されます。</p>
     <div class="color-controls">
       <label class="color-control">メインカラー <input id="main-color" type="color" value="#7457d9"></label>
-      <label class="color-control">背景色 <input id="background-color" type="color" value="#f6f3ff"></label>
+      <label class="color-control">サイコロのドット色 <input id="pip-color" type="color" value="#292333"></label>
       <label class="color-control">ボタンの色 <input id="button-color" type="color" value="#7457d9"></label>
       <label class="color-control">サイコロの色 <input id="dice-color" type="color" value="#ffffff"></label>
     </div>
@@ -254,6 +295,7 @@ const probEl = document.getElementById('prob');
 const statusEl = document.getElementById('status');
 const historyEl = document.getElementById('history');
 const pips = [...diceEl.querySelectorAll('.pip')];
+const pingEffect = document.getElementById('ping-effect');
 
 let selected = [1,2,3,4,5,6];
 let history = [];
@@ -271,7 +313,14 @@ function renderDice(value) {
   pips.forEach((pip, index) => {
     pip.classList.toggle('is-visible', pipPatterns[value].includes(index));
   });
+  diceEl.dataset.value = value;
   diceEl.setAttribute('aria-label', `${value}の目が出たサイコロ`);
+}
+
+function playPingEffect() {
+  pingEffect.classList.remove('is-active');
+  void pingEffect.offsetWidth;
+  pingEffect.classList.add('is-active');
 }
 
 function renderFaces() {
@@ -336,9 +385,7 @@ async function roll() {
   const result = selected[secureRandomIndex(selected.length)];
   diceEl.classList.remove('rolling');
   renderDice(result);
-  diceEl.classList.remove('result-pop');
-  void diceEl.offsetWidth;
-  diceEl.classList.add('result-pop');
+  playPingEffect();
 
   history.unshift(result);
   history = history.slice(0, 20);
@@ -364,7 +411,7 @@ rollBtn.addEventListener('click', roll);
 
 const colorControls = {
   'main-color': '--main-color',
-  'background-color': '--background-color',
+  'pip-color': '--pip-color',
   'button-color': '--button-color',
   'dice-color': '--dice-color'
 };
